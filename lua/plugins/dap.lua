@@ -1,23 +1,39 @@
 return {
-  -- Core DAP
+  { "mfussenegger/nvim-dap" },
   {
-    "mfussenegger/nvim-dap",
+    "rcarriga/nvim-dap-ui",
+    dependencies = { "nvim-neotest/nvim-nio" },
     config = function()
       local dap = require("dap")
+      local dapui = require("dapui")
 
-      dap.adapters.cpp = {
-        type = "executable",
-        command = "gdb",      -- requires GDB with DAP interface
-        args = { "-i", "dap" }
+      dapui.setup()
+      dap.listeners.after.event_initialized["dapui_config"] = function()
+        dapui.open()
+      end
+      dap.listeners.before.event_terminated["dapui_config"] = function()
+        dapui.close()
+      end
+      dap.listeners.before.event_exited["dapui_config"] = function()
+        dapui.close()
+      end
+
+      -- GDB adapter
+      dap.adapters.cppdbg = {
+        id = 'cppdbg',
+        type = 'executable',
+        command = 'gdb',
+        args = { '-i=mi' }, -- GDB machine interface
       }
 
+      -- Config for C / C++
       dap.configurations.c = {
         {
-          name = "Launch",
-          type = "cpp",
+          name = "Launch C with GDB",
+          type = "cppdbg",
           request = "launch",
           program = function()
-            return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/", "file")
+            return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/build/", "file")
           end,
           cwd = "${workspaceFolder}",
           stopOnEntry = false,
@@ -27,29 +43,6 @@ return {
       dap.configurations.cpp = dap.configurations.c
     end,
   },
-
-  -- UI on top of DAP
-  {
-    "rcarriga/nvim-dap-ui",
-    dependencies = {
-      "mfussenegger/nvim-dap",
-      "nvim-neotest/nvim-nio", -- <-- REQUIRED
-    },
-    config = function()
-      local dap, dapui = require("dap"), require("dapui")
-      dapui.setup()
-
-      -- auto open/close UI
-      dap.listeners.after.event_initialized["dapui_config"] = function() dapui.open() end
-      dap.listeners.before.event_terminated["dapui_config"] = function() dapui.close() end
-      dap.listeners.before.event_exited["dapui_config"] = function() dapui.close() end
-    end,
-  },
-
-  -- Inline virtual text (optional, but handy)
-  {
-    "theHamsta/nvim-dap-virtual-text",
-    dependencies = { "mfussenegger/nvim-dap" },
-    config = function() require("nvim-dap-virtual-text").setup() end,
-  },
+  { "theHamsta/nvim-dap-virtual-text", opts = { commented = true } },
+  { "stevearc/overseer.nvim", opts = {} },
 }
